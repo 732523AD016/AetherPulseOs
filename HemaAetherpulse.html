@@ -1,0 +1,1448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>AetherPulse OS — AI Emergency Healthcare</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+<style>
+/* ═══════════════════════ CSS VARIABLES ═══════════════════════ */
+:root{
+  --bg:#020203; --bg2:#080810; --bg3:#0d0d1a;
+  --cyan:#00F2FF; --purple:#A020F0; --red:#FF3131; --green:#00FF88;
+  --orange:#FF9500;
+  --cdim:rgba(0,242,255,.12); --pdim:rgba(160,32,240,.12);
+  --rdim:rgba(255,49,49,.12); --gdim:rgba(0,255,136,.1);
+  --glass:rgba(255,255,255,.04); --glass2:rgba(255,255,255,.07);
+  --gb:rgba(0,242,255,.18); --gb2:rgba(0,242,255,.08);
+  --text:#e0f7fa; --dim:rgba(224,247,250,.45); --dim2:rgba(224,247,250,.25);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);font-family:'Rajdhani',sans-serif;
+  color:var(--text);min-height:100vh;overflow-x:hidden;
+  transition:background .8s;cursor:default;
+}
+body.alert-mode{--bg:#060000;--bg2:#0a0000;--cyan:#FF3131;--gb:rgba(255,49,49,.25)}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(0,242,255,.3);border-radius:4px}
+
+/* ── NEURAL CANVAS ── */
+#nc{position:fixed;inset:0;z-index:0;pointer-events:none}
+
+/* ── ALERT BANNER ── */
+#ab{
+  display:none;position:fixed;top:0;left:0;right:0;z-index:9999;
+  background:linear-gradient(90deg,#FF313199,#80000099,#FF313199);
+  background-size:200%;animation:abm 2s linear infinite;
+  padding:9px 20px;align-items:center;gap:10px;
+  font-family:'Orbitron',monospace;font-size:11px;letter-spacing:2px;
+  border-bottom:1px solid var(--red);
+}
+@keyframes abm{0%{background-position:0%}100%{background-position:200%}}
+.abp{width:8px;height:8px;border-radius:50%;background:#fff;flex-shrink:0;animation:blink .5s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* ── MAIN LAYOUT ── */
+#app{position:relative;z-index:1;display:flex;flex-direction:column;min-height:100vh}
+
+/* ══════════ NAV ══════════ */
+nav{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 28px;border-bottom:1px solid var(--gb);
+  backdrop-filter:blur(24px);background:rgba(2,2,3,.9);
+  position:sticky;top:0;z-index:500;gap:12px;
+  transition:border-color .8s;flex-wrap:wrap;
+}
+.logo{
+  font-family:'Orbitron',monospace;font-size:16px;font-weight:900;
+  background:linear-gradient(90deg,var(--cyan),var(--purple));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  letter-spacing:3px;white-space:nowrap;cursor:pointer;
+}
+.nav-tabs{display:flex;gap:2px;flex-wrap:wrap}
+.ntab{
+  padding:5px 12px;border:1px solid transparent;
+  background:transparent;color:var(--dim);
+  font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:600;
+  letter-spacing:2px;text-transform:uppercase;cursor:pointer;
+  border-radius:4px;transition:all .25s;white-space:nowrap;
+}
+.ntab:hover,.ntab.on{border-color:var(--gb);color:var(--cyan);background:var(--cdim)}
+.nav-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.hr-display{
+  font-family:'Share Tech Mono',monospace;font-size:12px;
+  color:var(--cyan);display:flex;align-items:center;gap:5px;
+}
+.hr-val{font-size:18px;font-weight:bold;transition:color .3s}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:blink 1.5s infinite}
+.sos-nav{
+  background:linear-gradient(135deg,var(--red),#900);
+  border:1px solid var(--red);color:#fff;
+  font-family:'Orbitron',monospace;font-size:10px;
+  padding:6px 14px;border-radius:4px;cursor:pointer;
+  letter-spacing:2px;animation:sosglow 2s infinite;white-space:nowrap;
+}
+@keyframes sosglow{0%,100%{box-shadow:0 0 14px rgba(255,49,49,.4)}50%{box-shadow:0 0 30px rgba(255,49,49,.8)}}
+.user-badge{
+  width:32px;height:32px;border-radius:50%;
+  background:linear-gradient(135deg,var(--cdim),var(--pdim));
+  border:1px solid var(--gb);display:flex;align-items:center;
+  justify-content:center;font-size:14px;cursor:pointer;
+  transition:all .2s;
+}
+.user-badge:hover{transform:scale(1.1);box-shadow:0 0 14px rgba(0,242,255,.3)}
+
+/* ══════════ PAGE SYSTEM ══════════ */
+.page{display:none;flex:1;animation:pgenter .4s cubic-bezier(.4,0,.2,1) forwards}
+.page.on{display:block}
+@keyframes pgenter{from{opacity:0;transform:scale(.97) translateY(6px)}to{opacity:1;transform:scale(1) translateY(0)}}
+
+/* ══════════ GLASS CARD ══════════ */
+.gc{
+  background:var(--glass);border:1px solid var(--gb2);
+  border-radius:14px;backdrop-filter:blur(30px);padding:20px;
+  position:relative;overflow:hidden;
+  transition:transform .3s,box-shadow .3s,border-color .8s;
+}
+.gc:hover{transform:translateY(-2px);box-shadow:0 14px 44px rgba(0,242,255,.08);border-color:var(--gb)}
+.gc::before{
+  content:'';position:absolute;inset:-1px;border-radius:15px;
+  background:conic-gradient(from 0deg,var(--cyan),var(--purple),var(--red),var(--cyan));
+  z-index:-1;opacity:0;transition:opacity .3s;animation:cspin 5s linear infinite;
+}
+.gc:hover::before{opacity:1}
+@keyframes cspin{to{transform:rotate(360deg)}}
+
+.clbl{
+  font-family:'Orbitron',monospace;font-size:9px;letter-spacing:3px;
+  color:var(--dim);text-transform:uppercase;margin-bottom:12px;
+  display:flex;align-items:center;gap:6px;
+}
+.tag{
+  display:inline-block;font-family:'Share Tech Mono',monospace;font-size:8px;
+  padding:2px 6px;border-radius:3px;letter-spacing:1px;
+}
+.tag.c{background:var(--cdim);border:1px solid rgba(0,242,255,.3);color:var(--cyan)}
+.tag.p{background:var(--pdim);border:1px solid rgba(160,32,240,.3);color:var(--purple)}
+.tag.r{background:var(--rdim);border:1px solid rgba(255,49,49,.3);color:var(--red)}
+.tag.g{background:var(--gdim);border:1px solid rgba(0,255,136,.3);color:var(--green)}
+
+/* ══════════ TYPOGRAPHY ══════════ */
+.page-title{font-family:'Orbitron',monospace;font-size:20px;font-weight:900;letter-spacing:2px;margin-bottom:20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.section-title{font-family:'Orbitron',monospace;font-size:13px;font-weight:700;letter-spacing:2px;margin-bottom:14px}
+.mono{font-family:'Share Tech Mono',monospace}
+.acyan{color:var(--cyan)}.apurple{color:var(--purple)}.ared{color:var(--red)}.agreen{color:var(--green)}.aorange{color:var(--orange)}
+
+/* ══════════ BUTTONS ══════════ */
+.btn{
+  padding:9px 20px;border-radius:6px;font-family:'Rajdhani',sans-serif;
+  font-size:13px;font-weight:600;letter-spacing:1px;cursor:pointer;
+  transition:all .25s;border:1px solid transparent;
+}
+.btn-cyan{background:var(--cdim);border-color:rgba(0,242,255,.3);color:var(--cyan)}
+.btn-cyan:hover{background:rgba(0,242,255,.2);box-shadow:0 0 20px rgba(0,242,255,.2)}
+.btn-red{background:var(--rdim);border-color:rgba(255,49,49,.4);color:var(--red)}
+.btn-red:hover{background:rgba(255,49,49,.2);box-shadow:0 0 20px rgba(255,49,49,.25)}
+.btn-purple{background:var(--pdim);border-color:rgba(160,32,240,.4);color:var(--purple)}
+.btn-purple:hover{background:rgba(160,32,240,.2)}
+.btn-solid{background:linear-gradient(135deg,var(--cyan),#0090aa);color:#020203;border:none;font-weight:700}
+.btn-solid:hover{transform:scale(1.03);box-shadow:0 0 24px rgba(0,242,255,.4)}
+.btn-solid-red{background:linear-gradient(135deg,var(--red),#900);color:#fff;border:none;font-weight:700}
+.btn-solid-red:hover{transform:scale(1.03);box-shadow:0 0 24px rgba(255,49,49,.4)}
+
+/* ══════════ INPUT ══════════ */
+.inp{
+  width:100%;padding:10px 14px;
+  background:rgba(255,255,255,.05);
+  border:1px solid var(--gb);border-radius:8px;
+  color:var(--text);font-family:'Rajdhani',sans-serif;font-size:14px;
+  outline:none;transition:border-color .3s;
+}
+.inp:focus{border-color:var(--cyan);box-shadow:0 0 0 2px rgba(0,242,255,.08)}
+.inp::placeholder{color:var(--dim2)}
+select.inp option{background:#0d0d1a;color:var(--text)}
+.inp-group{margin-bottom:14px}
+.inp-label{font-size:11px;letter-spacing:2px;color:var(--dim);margin-bottom:5px;font-family:'Orbitron',monospace}
+
+/* ══════════ STAT BOX ══════════ */
+.statbox{background:var(--glass);border:1px solid var(--gb2);border-radius:10px;padding:14px;text-align:center;transition:all .3s}
+.statbox:hover{border-color:var(--gb);transform:translateY(-1px)}
+.statbox-val{font-family:'Orbitron',monospace;font-size:26px;font-weight:900;margin-bottom:2px}
+.statbox-lbl{font-size:10px;color:var(--dim);letter-spacing:2px}
+
+/* ══════════ TICKER ══════════ */
+.ticker-wrap{height:140px;overflow:hidden;position:relative}
+.ticker-wrap::after{content:'';position:absolute;bottom:0;left:0;right:0;height:30px;background:linear-gradient(transparent,rgba(2,2,3,.95))}
+.ticker-scroll{animation:tscroll 14s linear infinite}
+@keyframes tscroll{0%{transform:translateY(0)}100%{transform:translateY(-50%)}}
+.ticker-item{display:flex;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:11px;line-height:1.5;align-items:flex-start}
+.tdot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:3px}
+
+/* ══════════ PROGRESS BAR ══════════ */
+.prog-bg{height:22px;background:rgba(255,255,255,.05);border-radius:5px;overflow:hidden;margin-bottom:4px}
+.prog-fill{height:100%;border-radius:5px;transition:width 1.5s cubic-bezier(.4,0,.2,1);position:relative}
+.prog-fill::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent 60%,rgba(255,255,255,.15));animation:shimmer 2s infinite}
+@keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+
+/* ══════════ RING SVG ══════════ */
+.ring-wrap{display:flex;flex-direction:column;align-items:center;gap:6px}
+
+/* ══════════ TIMELINE ══════════ */
+.tl-step{display:flex;gap:12px;align-items:flex-start;padding:10px 0;position:relative}
+.tl-step:not(:last-child)::after{content:'';position:absolute;left:13px;top:32px;bottom:0;width:1px;background:rgba(0,242,255,.12)}
+.tl-icon{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;border:1px solid rgba(0,242,255,.3);transition:all .5s}
+.tl-icon.done{background:rgba(0,255,136,.15);border-color:var(--green);box-shadow:0 0 10px rgba(0,255,136,.3);color:var(--green)}
+.tl-icon.active{background:var(--cdim);border-color:var(--cyan);box-shadow:0 0 10px rgba(0,242,255,.4);color:var(--cyan);animation:tpulse 1.5s infinite}
+.tl-icon.pend{background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.1);opacity:.45;color:var(--dim)}
+@keyframes tpulse{0%,100%{box-shadow:0 0 10px rgba(0,242,255,.4)}50%{box-shadow:0 0 22px rgba(0,242,255,.7)}}
+.tl-label{font-family:'Orbitron',monospace;font-size:10px;font-weight:700}
+.tl-sub{font-size:10px;color:var(--dim);margin-top:1px}
+.tl-time{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--cyan);margin-top:1px}
+
+/* ══════════ HOSPITAL CARD ══════════ */
+.hosp-card{
+  background:var(--glass);border:1px solid var(--gb2);
+  border-radius:12px;padding:16px;cursor:pointer;
+  transition:all .3s;position:relative;overflow:hidden;
+}
+.hosp-card:hover{transform:scale(1.02);border-color:var(--gb)}
+.hosp-card.best{border-color:var(--cyan);box-shadow:0 0 24px rgba(0,242,255,.2)}
+.best-badge{
+  position:absolute;top:0;right:0;background:var(--cyan);color:#020203;
+  font-family:'Orbitron',monospace;font-size:7px;padding:3px 9px;
+  letter-spacing:1px;border-radius:0 12px 0 7px;font-weight:700;
+}
+.hosp-name{font-family:'Orbitron',monospace;font-size:12px;font-weight:700;margin-bottom:2px}
+.hosp-score{font-family:'Share Tech Mono',monospace;font-size:22px;color:var(--cyan)}
+.hosp-meta{font-size:10px;color:var(--dim);margin-top:5px;line-height:1.6}
+.tminus{font-size:9px;color:var(--purple);margin-top:3px;font-family:'Share Tech Mono',monospace}
+
+/* ══════════ AUTH PAGE ══════════ */
+#p-auth{min-height:calc(100vh - 57px);display:none;align-items:center;justify-content:center;padding:40px 20px}
+#p-auth.on{display:flex}
+.auth-box{width:100%;max-width:420px}
+.auth-toggle{display:flex;gap:4px;margin-bottom:24px;background:rgba(255,255,255,.04);border-radius:8px;padding:4px}
+.auth-toggle-btn{flex:1;padding:8px;border:none;background:transparent;color:var(--dim);font-family:'Orbitron',monospace;font-size:11px;letter-spacing:2px;cursor:pointer;border-radius:6px;transition:all .2s}
+.auth-toggle-btn.on{background:var(--cdim);color:var(--cyan);border:1px solid rgba(0,242,255,.3)}
+
+/* ══════════ LANDING PAGE ══════════ */
+.hero{
+  min-height:calc(100vh - 57px);display:flex;
+  flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:40px 20px;position:relative;
+}
+.hero-title{
+  font-family:'Orbitron',monospace;font-size:clamp(28px,6vw,64px);
+  font-weight:900;line-height:1.1;margin-bottom:20px;
+  background:linear-gradient(135deg,var(--cyan),var(--purple),var(--cyan));
+  background-size:200%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  animation:titlegrad 4s linear infinite;
+}
+@keyframes titlegrad{0%{background-position:0%}100%{background-position:200%}}
+.hero-sub{font-size:clamp(14px,2vw,18px);color:var(--dim);max-width:600px;line-height:1.7;margin-bottom:36px}
+.hero-btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.feature-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;padding:40px 28px;max-width:1200px;margin:0 auto;width:100%}
+.feature-card{text-align:center;padding:28px 20px}
+.feature-icon{font-size:36px;margin-bottom:12px}
+.feature-title{font-family:'Orbitron',monospace;font-size:12px;letter-spacing:2px;color:var(--cyan);margin-bottom:8px}
+.feature-desc{font-size:12px;color:var(--dim);line-height:1.6}
+.stats-strip{display:flex;gap:0;border-top:1px solid var(--gb2);border-bottom:1px solid var(--gb2);background:rgba(0,242,255,.02)}
+.strip-stat{flex:1;text-align:center;padding:24px 16px;border-right:1px solid var(--gb2)}
+.strip-stat:last-child{border-right:none}
+.strip-num{font-family:'Orbitron',monospace;font-size:28px;font-weight:900;color:var(--cyan)}
+.strip-lbl{font-size:10px;color:var(--dim);letter-spacing:2px;margin-top:4px}
+
+/* ══════════ DASHBOARD ══════════ */
+#p-dashboard{padding:24px 28px}
+.dash-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+.dash-mid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:16px}
+.dash-bot{display:grid;grid-template-columns:2fr 1fr;gap:14px}
+.vitality-num{font-family:'Orbitron',monospace;font-size:48px;font-weight:900;line-height:1;background:linear-gradient(135deg,var(--cyan),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.vbar{height:3px;background:rgba(255,255,255,.08);border-radius:2px;margin:10px 0 8px;overflow:hidden}
+.vfill{height:100%;background:linear-gradient(90deg,var(--cyan),var(--purple));border-radius:2px;transition:width 1s;box-shadow:0 0 8px var(--cyan)}
+
+/* ══════════ SOS PAGE ══════════ */
+#p-sos{padding:24px 28px}
+.sos-layout{display:grid;grid-template-columns:1fr 1.4fr;gap:20px;align-items:start}
+.sos-center{display:flex;flex-direction:column;align-items:center;gap:24px}
+.sos-ring{width:180px;height:180px;border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer}
+.sos-ring::before,.sos-ring::after{content:'';position:absolute;border-radius:50%;border:2px solid var(--red);width:180px;height:180px;animation:srip 2s ease-out infinite}
+.sos-ring::after{animation-delay:1s}
+@keyframes srip{0%{width:180px;height:180px;opacity:1}100%{width:300px;height:300px;opacity:0}}
+.sos-btn-inner{
+  width:150px;height:150px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,49,49,.3),rgba(255,49,49,.05));
+  border:2px solid var(--red);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  box-shadow:0 0 50px rgba(255,49,49,.38);
+  font-family:'Orbitron',monospace;transition:all .25s;
+}
+.sos-btn-inner:hover{transform:scale(1.06);box-shadow:0 0 80px rgba(255,49,49,.6)}
+.sos-btn-inner.fired{box-shadow:0 0 100px rgba(255,49,49,.85);background:radial-gradient(circle,rgba(255,49,49,.5),rgba(255,49,49,.1))}
+.sos-text{font-size:28px;font-weight:900;color:var(--red);letter-spacing:6px}
+.sos-sub-text{font-size:8px;letter-spacing:3px;color:rgba(255,49,49,.6);margin-top:3px}
+.sos-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;max-width:320px}
+#p-sos .hosp-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.obstacle-box{background:rgba(255,149,0,.07);border:1px solid rgba(255,149,0,.22);border-radius:8px;padding:10px 14px;margin-top:10px;font-size:11px;color:var(--orange)}
+
+/* ══════════ VOICE PAGE ══════════ */
+#p-voice{padding:24px 28px}
+.voice-center{display:flex;flex-direction:column;align-items:center;gap:22px;padding:10px 0}
+.voice-circle{
+  width:150px;height:150px;border-radius:50%;
+  background:radial-gradient(circle,rgba(160,32,240,.28),rgba(160,32,240,.04));
+  border:2px solid var(--purple);display:flex;align-items:center;
+  justify-content:center;font-size:48px;cursor:pointer;
+  transition:all .3s;position:relative;user-select:none;
+}
+.voice-circle::before{content:'';position:absolute;inset:-10px;border-radius:50%;border:1px solid rgba(160,32,240,.3);animation:vp 2s ease infinite}
+@keyframes vp{0%,100%{transform:scale(1);opacity:.4}50%{transform:scale(1.07);opacity:1}}
+.voice-circle.listening{box-shadow:0 0 55px rgba(160,32,240,.6)}
+.lang-btns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.lbtn{padding:7px 16px;border:1px solid var(--gb2);background:transparent;color:var(--dim);font-family:'Orbitron',monospace;font-size:10px;letter-spacing:2px;border-radius:4px;cursor:pointer;transition:all .3s}
+.lbtn.on{border-color:var(--purple);color:var(--purple);background:var(--pdim)}
+.transcript-box{background:rgba(160,32,240,.07);border:1px solid rgba(160,32,240,.2);border-radius:10px;padding:16px 20px;max-width:540px;width:100%;font-family:'Share Tech Mono',monospace;font-size:12px;line-height:1.7;min-height:60px}
+.voice-cmds{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;width:100%;max-width:680px}
+.vcmd{padding:14px;cursor:pointer;text-align:center}
+.vcmd-icon{font-size:22px;margin-bottom:7px}
+.vcmd-title{font-family:'Orbitron',monospace;font-size:10px;letter-spacing:1px;color:var(--cyan);margin-bottom:3px}
+.vcmd-sub{font-size:10px;color:var(--dim)}
+
+/* ══════════ WELLNESS PAGE ══════════ */
+#p-wellness{padding:24px 28px}
+.wellness-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+
+/* ══════════ HOSPITAL DASHBOARD ══════════ */
+#p-hospital{padding:24px 28px}
+.hosp-dash-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+.request-list{display:flex;flex-direction:column;gap:10px}
+.req-card{background:var(--glass);border:1px solid var(--gb2);border-radius:10px;padding:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;transition:border-color .3s}
+.req-card.urgent{border-color:rgba(255,49,49,.4)}
+.req-card.moderate{border-color:rgba(255,149,0,.3)}
+.req-status{font-size:10px;padding:3px 10px;border-radius:20px;font-family:'Orbitron',monospace;letter-spacing:1px;white-space:nowrap}
+.status-active{background:var(--rdim);border:1px solid rgba(255,49,49,.3);color:var(--red)}
+.status-pending{background:rgba(255,149,0,.1);border:1px solid rgba(255,149,0,.3);color:var(--orange)}
+.status-done{background:var(--gdim);border:1px solid rgba(0,255,136,.3);color:var(--green)}
+
+/* ══════════ ADMIN PAGE ══════════ */
+#p-admin{padding:24px 28px}
+.admin-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+.admin-mid{display:grid;grid-template-columns:1.5fr 1fr;gap:14px}
+
+/* ══════════ PROFILE PAGE ══════════ */
+#p-profile{padding:24px 28px}
+.profile-layout{display:grid;grid-template-columns:280px 1fr;gap:20px}
+.profile-avatar{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--cdim),var(--pdim));border:2px solid var(--gb);display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 12px}
+.profile-name{font-family:'Orbitron',monospace;font-size:16px;font-weight:700;text-align:center;margin-bottom:4px}
+.profile-role{font-size:11px;color:var(--cyan);text-align:center;letter-spacing:2px;margin-bottom:16px}
+
+/* ══════════ MAP PLACEHOLDER ══════════ */
+.map-box{
+  background:rgba(0,0,0,.5);border:1px solid var(--gb);
+  border-radius:10px;position:relative;overflow:hidden;
+}
+.map-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+.map-grid-line{position:absolute;background:rgba(0,242,255,.06)}
+
+/* ══════════ RESPONSIVE ══════════ */
+@media(max-width:1100px){.dash-grid{grid-template-columns:repeat(2,1fr)}.dash-mid{grid-template-columns:1fr 1fr}.dash-bot{grid-template-columns:1fr}.hosp-dash-grid{grid-template-columns:repeat(2,1fr)}.admin-grid{grid-template-columns:repeat(2,1fr)}.admin-mid{grid-template-columns:1fr}.profile-layout{grid-template-columns:1fr}.sos-layout{grid-template-columns:1fr}}
+@media(max-width:700px){nav{padding:8px 14px}.logo{font-size:13px}.ntab{font-size:9px;padding:4px 8px}.page-title{font-size:15px}#p-dashboard,#p-sos,#p-voice,#p-wellness,#p-hospital,#p-admin,#p-profile{padding:16px}.dash-grid{grid-template-columns:1fr 1fr}.dash-mid{grid-template-columns:1fr}.dash-bot{grid-template-columns:1fr}.hosp-dash-grid{grid-template-columns:1fr 1fr}#p-sos .hosp-grid{grid-template-columns:1fr}.sos-info-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){.dash-grid{grid-template-columns:1fr}.hosp-dash-grid{grid-template-columns:1fr}.admin-grid{grid-template-columns:1fr}.stats-strip{flex-direction:column}.strip-stat{border-right:none;border-bottom:1px solid var(--gb2)}.strip-stat:last-child{border-bottom:none}}
+</style>
+</head>
+<body>
+<canvas id="nc"></canvas>
+
+<!-- ALERT BANNER -->
+<div id="ab">
+  <div class="abp"></div>
+  <span id="ab-text">⚠ CRITICAL — PATIENT HR ELEVATED — QUANTUM ROUTE ACTIVE — APOLLO HOSPITAL — ETA 4 MIN</span>
+</div>
+
+<div id="app">
+
+<!-- ═══════════════════════════ NAV ═══════════════════════════ -->
+<nav>
+  <div class="logo" onclick="showPage('landing')">AETHERPULSE OS</div>
+  <div class="nav-tabs" id="nav-tabs">
+    <button class="ntab" onclick="showPage('dashboard')">COMMAND</button>
+    <button class="ntab" onclick="showPage('sos')">SOS</button>
+    <button class="ntab" onclick="showPage('voice')">AI VOICE</button>
+    <button class="ntab" onclick="showPage('wellness')">WELLNESS</button>
+    <button class="ntab" onclick="showPage('hospital')">HOSPITAL</button>
+    <button class="ntab" onclick="showPage('admin')">ADMIN</button>
+  </div>
+  <div class="nav-right">
+    <div class="hr-display">♥ <span class="hr-val" id="hr-val">78</span> <span style="font-size:10px">bpm</span></div>
+    <div class="live-dot"></div>
+    <button class="sos-nav" onclick="showPage('sos')">SOS</button>
+    <div class="user-badge" onclick="showPage('profile')" title="Profile">👤</div>
+  </div>
+</nav>
+
+<!-- ═══════════════════════ LANDING PAGE ═══════════════════════ -->
+<div class="page on" id="p-landing">
+  <div class="hero">
+    <div style="font-family:'Orbitron',monospace;font-size:11px;letter-spacing:5px;color:var(--cyan);margin-bottom:16px;opacity:.7">URBAN AI HEALTHCARE SYSTEM</div>
+    <div class="hero-title">AetherPulse OS</div>
+    <p class="hero-sub">We are not just building an app — we are saving the next 100 lives in your city. AI-powered emergency response that finds hospital beds before they are officially empty.</p>
+    <div class="hero-btns">
+      <button class="btn btn-solid" style="padding:12px 32px;font-size:15px" onclick="showPage('auth')">GET STARTED</button>
+      <button class="btn btn-cyan" style="padding:12px 28px;font-size:15px" onclick="showPage('dashboard')">LIVE DEMO</button>
+    </div>
+    <div style="margin-top:48px;display:flex;gap:24px;flex-wrap:wrap;justify-content:center">
+      <div style="text-align:center"><div style="font-family:'Orbitron',monospace;font-size:28px;font-weight:900;color:var(--cyan)">40%</div><div style="font-size:11px;color:var(--dim);letter-spacing:2px">FASTER RESPONSE</div></div>
+      <div style="text-align:center"><div style="font-family:'Orbitron',monospace;font-size:28px;font-weight:900;color:var(--purple)">6</div><div style="font-size:11px;color:var(--dim);letter-spacing:2px">HOSPITALS LIVE</div></div>
+      <div style="text-align:center"><div style="font-family:'Orbitron',monospace;font-size:28px;font-weight:900;color:var(--green)">24/7</div><div style="font-size:11px;color:var(--dim);letter-spacing:2px">AI MONITORING</div></div>
+      <div style="text-align:center"><div style="font-family:'Orbitron',monospace;font-size:28px;font-weight:900;color:var(--red)">4 MIN</div><div style="font-size:11px;color:var(--dim);letter-spacing:2px">AVG ETA</div></div>
+    </div>
+  </div>
+
+  <div style="max-width:1200px;margin:0 auto;width:100%;padding:0 28px 40px">
+    <div style="text-align:center;margin-bottom:32px">
+      <div class="page-title" style="justify-content:center;font-size:18px">PLATFORM FEATURES</div>
+      <p style="color:var(--dim);font-size:13px">Startup-grade technology built for real emergency impact</p>
+    </div>
+    <div class="feature-grid" style="padding:0">
+      <div class="gc feature-card"><div class="feature-icon">🚨</div><div class="feature-title">ONE-TAP SOS</div><div class="feature-desc">Instantly dispatches ambulance with GPS location and notifies emergency contacts automatically</div></div>
+      <div class="gc feature-card"><div class="feature-icon">🧠</div><div class="feature-title">NEURAL AI ROUTING</div><div class="feature-desc">Scores hospitals by distance, traffic, ICU beds, specialty — selects optimal rescue node in milliseconds</div></div>
+      <div class="gc feature-card"><div class="feature-icon">🗺️</div><div class="feature-title">QUANTUM ROUTING</div><div class="feature-desc">Live ambulance tracking with obstacle-aware rerouting via Google Maps integration</div></div>
+      <div class="gc feature-card"><div class="feature-icon">🎙️</div><div class="feature-title">VOICE AI ASSISTANT</div><div class="feature-desc">Tamil, Hindi, English voice commands for rural accessibility and emergency guidance</div></div>
+      <div class="gc feature-card"><div class="feature-icon">💚</div><div class="feature-title">WELLNESS SYNC</div><div class="feature-desc">Real-time HR, SpO2, steps and sleep tracking with AI health insights and anomaly detection</div></div>
+      <div class="gc feature-card"><div class="feature-icon">🏥</div><div class="feature-title">HOSPITAL NETWORK</div><div class="feature-desc">Live ICU bed, ER, and ambulance data across 6 hospitals updated every 30 seconds</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ AUTH PAGE ═══════════════════════ -->
+<div class="page" id="p-auth">
+  <div class="auth-box">
+    <div style="text-align:center;margin-bottom:24px">
+      <div class="logo" style="font-size:20px;display:block;margin-bottom:8px">AETHERPULSE OS</div>
+      <div style="font-size:12px;color:var(--dim);letter-spacing:2px">SECURE ACCESS PORTAL</div>
+    </div>
+    <div class="gc">
+      <div class="auth-toggle">
+        <button class="auth-toggle-btn on" id="login-btn" onclick="switchAuth('login')">LOGIN</button>
+        <button class="auth-toggle-btn" id="register-btn" onclick="switchAuth('register')">REGISTER</button>
+      </div>
+
+      <!-- LOGIN -->
+      <div id="login-form">
+        <div class="inp-group"><div class="inp-label">EMAIL</div><input class="inp" type="email" placeholder="you@example.com" id="login-email"/></div>
+        <div class="inp-group"><div class="inp-label">PASSWORD</div><input class="inp" type="password" placeholder="••••••••" id="login-pass"/></div>
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <button class="btn btn-solid" style="flex:1" onclick="doLogin()">LOGIN →</button>
+          <button class="btn btn-red" style="padding:9px 16px" onclick="doLogin('hospital')">HOSPITAL</button>
+          <button class="btn btn-purple" style="padding:9px 16px" onclick="doLogin('admin')">ADMIN</button>
+        </div>
+        <div style="margin-top:12px;padding:10px;background:rgba(0,242,255,.05);border-radius:6px;font-size:11px;color:var(--dim)">
+          Demo: any email + password → User login<br>HOSPITAL → Hospital dashboard &nbsp; ADMIN → Admin panel
+        </div>
+      </div>
+
+      <!-- REGISTER -->
+      <div id="register-form" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="inp-group"><div class="inp-label">FULL NAME</div><input class="inp" type="text" placeholder="Hema Priya"/></div>
+          <div class="inp-group"><div class="inp-label">PHONE</div><input class="inp" type="tel" placeholder="+91 98765 43210"/></div>
+          <div class="inp-group"><div class="inp-label">EMAIL</div><input class="inp" type="email" placeholder="hema@example.com"/></div>
+          <div class="inp-group"><div class="inp-label">AGE</div><input class="inp" type="number" placeholder="22"/></div>
+          <div class="inp-group"><div class="inp-label">BLOOD GROUP</div>
+            <select class="inp"><option value="">Select...</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>O+</option><option>O-</option><option>AB+</option><option>AB-</option></select>
+          </div>
+          <div class="inp-group"><div class="inp-label">PASSWORD</div><input class="inp" type="password" placeholder="••••••••"/></div>
+        </div>
+        <div class="inp-group"><div class="inp-label">MEDICAL HISTORY (OPTIONAL)</div><textarea class="inp" rows="2" placeholder="Diabetes, Hypertension..." style="resize:none"></textarea></div>
+        <div class="inp-group"><div class="inp-label">EMERGENCY CONTACT</div><input class="inp" type="tel" placeholder="+91 98765 43210"/></div>
+        <button class="btn btn-solid" style="width:100%;margin-top:4px" onclick="doLogin()">CREATE ACCOUNT →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ DASHBOARD ═══════════════════════ -->
+<div class="page" id="p-dashboard">
+  <div id="p-dashboard-inner" style="padding:24px 28px">
+    <!-- Status row -->
+    <div style="display:flex;gap:16px;margin-bottom:18px;flex-wrap:wrap;align-items:center">
+      <div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 6px var(--cyan);display:inline-block"></span>NEURAL SYNC ACTIVE</div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="width:6px;height:6px;border-radius:50%;background:var(--purple);box-shadow:0 0 6px var(--purple);display:inline-block"></span>AI MODEL v4.2 RUNNING</div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);display:inline-block"></span>6 HOSPITALS ONLINE</div>
+      <div style="margin-left:auto;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--dim)" id="clock-display"></div>
+    </div>
+
+    <!-- Top stat boxes -->
+    <div class="dash-grid" style="margin-bottom:14px">
+      <div class="statbox gc"><div class="statbox-val acyan" id="d-vitality">74%</div><div class="statbox-lbl">CITY VITALITY</div></div>
+      <div class="statbox gc"><div class="statbox-val agreen" id="d-icu">12</div><div class="statbox-lbl">ICU BEDS FREE</div></div>
+      <div class="statbox gc"><div class="statbox-val apurple" id="d-active">3</div><div class="statbox-lbl">ACTIVE SOS</div></div>
+      <div class="statbox gc"><div class="statbox-val aorange" id="d-amb">14</div><div class="statbox-lbl">AMBULANCES ON</div></div>
+    </div>
+
+    <!-- Mid row -->
+    <div class="dash-mid" style="margin-bottom:14px">
+      <!-- Vitality -->
+      <div class="gc">
+        <div class="clbl">City Vitality Index</div>
+        <div class="vitality-num" id="v-num">74</div>
+        <div style="font-size:10px;color:var(--dim);margin-top:4px">% SYSTEM CAPACITY OPTIMAL</div>
+        <div class="vbar"><div class="vfill" id="v-fill" style="width:74%"></div></div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap">
+          <div style="font-size:11px;color:var(--dim)">ICU <b id="icu-cnt" style="color:var(--text)">12</b></div>
+          <div style="font-size:11px;color:var(--dim)">ER <b id="er-cnt" style="color:var(--text)">8</b></div>
+          <div style="font-size:11px;color:var(--dim)">OT <b id="ot-cnt" style="color:var(--text)">5</b></div>
+          <div style="font-size:11px;color:var(--dim)">Amb <b id="amb-cnt" style="color:var(--text)">14</b></div>
+        </div>
+      </div>
+
+      <!-- SOS Ticker -->
+      <div class="gc">
+        <div class="clbl">Active SOS Feed <span class="tag c">LIVE</span></div>
+        <div class="ticker-wrap">
+          <div class="ticker-scroll">
+            <div class="ticker-item"><div class="tdot" style="background:var(--red);box-shadow:0 0 5px var(--red)"></div><div>CARDIAC — Zone 4 — Amb #07 dispatched <span class="mono acyan">2m ago</span></div></div>
+            <div class="ticker-item"><div class="tdot" style="background:var(--cyan);box-shadow:0 0 5px var(--cyan)"></div><div>TRAUMA — Anna Salai — Apollo ICU confirmed <span class="mono acyan">5m ago</span></div></div>
+            <div class="ticker-item"><div class="tdot" style="background:var(--purple);box-shadow:0 0 5px var(--purple)"></div><div>STROKE — T Nagar — Kaveri Neuro routed <span class="mono acyan">8m ago</span></div></div>
+            <div class="ticker-item"><div class="tdot" style="background:var(--red);box-shadow:0 0 5px var(--red)"></div><div>POLYTRAUMA — Adyar — MIOT bay ready <span class="mono acyan">11m ago</span></div></div>
+            <div class="ticker-item"><div class="tdot" style="background:var(--cyan);box-shadow:0 0 5px var(--cyan)"></div><div>BURN — Tambaram — SRMC burn unit alerted <span class="mono acyan">15m ago</span></div></div>
+            <div class="ticker-item"><div class="tdot" style="background:var(--red);box-shadow:0 0 5px var(--red)"></div><div>CARDIAC — Zone 4 — Amb #07 dispatched <span class="mono acyan">2m ago</span></div></div>
+            <div class="ticker-item"><div class="tdot" style="background:var(--cyan);box-shadow:0 0 5px var(--cyan)"></div><div>TRAUMA — Anna Salai — Apollo ICU confirmed <span class="mono acyan">5m ago</span></div></div>
+            <div class="ticker-item"><div class="tdot" style="background:var(--purple);box-shadow:0 0 5px var(--purple)"></div><div>STROKE — T Nagar — Kaveri Neuro routed <span class="mono acyan">8m ago</span></div></div>
+            <div class="ticker-item"><div class="tdot" style="background:var(--red);box-shadow:0 0 5px var(--red)"></div><div>POLYTRAUMA — Adyar — MIOT bay ready <span class="mono acyan">11m ago</span></div></div>
+            <div class="ticker-item"><div class="tdot" style="background:var(--cyan);box-shadow:0 0 5px var(--cyan)"></div><div>BURN — Tambaram — SRMC burn unit alerted <span class="mono acyan">15m ago</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Heatmap -->
+      <div class="gc">
+        <div class="clbl">Predictive Demand Heatmap <span class="tag p">AI</span></div>
+        <canvas id="heatmap" style="width:100%;height:140px;border-radius:6px"></canvas>
+        <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap">
+          <span style="font-size:9px;color:var(--dim)">■ <span style="color:var(--red)">CRITICAL</span></span>
+          <span style="font-size:9px;color:var(--dim)">■ <span style="color:var(--orange)">HIGH</span></span>
+          <span style="font-size:9px;color:var(--dim)">■ <span style="color:var(--cyan)">MOD</span></span>
+          <span style="font-size:9px;color:var(--dim)">■ <span style="color:var(--green)">LOW</span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hospital AI Grid -->
+    <div class="gc" style="margin-bottom:14px">
+      <div class="clbl">Optimal Rescue Nodes — Neural Algorithm <span class="tag p">AI SCORING</span></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:8px" id="hosp-grid-dash"></div>
+    </div>
+
+    <!-- Bottom row -->
+    <div class="dash-bot">
+      <div class="gc">
+        <div class="clbl">Recent Emergency History</div>
+        <div style="display:flex;flex-direction:column;gap:8px" id="em-history">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:rgba(255,255,255,.03);border-radius:8px;font-size:12px"><span>Cardiac — Apollo — Resolved</span><span class="tag g">RESOLVED</span></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:rgba(255,255,255,.03);border-radius:8px;font-size:12px"><span>Trauma — MIOT — Resolved</span><span class="tag g">RESOLVED</span></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:rgba(255,255,255,.03);border-radius:8px;font-size:12px"><span>Stroke — Kaveri — Active</span><span class="tag r">ACTIVE</span></div>
+        </div>
+      </div>
+      <div class="gc">
+        <div class="clbl">Quick Actions</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn btn-solid-red" style="width:100%" onclick="showPage('sos')">🚨 EMERGENCY SOS</button>
+          <button class="btn btn-cyan" style="width:100%" onclick="showPage('voice')">🎙️ AI VOICE ASSIST</button>
+          <button class="btn btn-purple" style="width:100%" onclick="showPage('wellness')">💚 WELLNESS CHECK</button>
+          <button class="btn btn-cyan" style="width:100%" onclick="showPage('profile')">👤 MY PROFILE</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ SOS PAGE ═══════════════════════ -->
+<div class="page" id="p-sos">
+  <div class="page-title"><span class="ared">⚡</span> EMERGENCY SOS <span class="tag r">LIVE</span></div>
+  <div class="sos-layout">
+    <!-- Left: SOS + timeline -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="gc">
+        <div class="clbl">Emergency Dispatch</div>
+        <div class="sos-center">
+          <div style="font-size:11px;color:var(--dim);letter-spacing:2px;font-family:'Orbitron',monospace">TAP TO ACTIVATE</div>
+          <div class="sos-ring" onclick="fireSOS()">
+            <div class="sos-btn-inner" id="sos-inner">
+              <div class="sos-text">SOS</div>
+              <div class="sos-sub-text" id="sos-sub">EMERGENCY</div>
+            </div>
+          </div>
+          <div class="sos-info-grid">
+            <div class="imi" style="background:var(--glass);border:1px solid var(--gb2);border-radius:10px;padding:12px;text-align:center"><div class="mono acyan" style="font-size:18px;font-weight:bold" id="sos-eta">—</div><div style="font-size:9px;color:var(--dim);margin-top:2px;letter-spacing:1px">AMB ETA</div></div>
+            <div class="imi" style="background:var(--glass);border:1px solid var(--gb2);border-radius:10px;padding:12px;text-align:center"><div class="mono apurple" style="font-size:14px;font-weight:bold" id="sos-hosp">—</div><div style="font-size:9px;color:var(--dim);margin-top:2px;letter-spacing:1px">HOSPITAL</div></div>
+            <div class="imi" style="background:var(--glass);border:1px solid var(--gb2);border-radius:10px;padding:12px;text-align:center"><div class="mono acyan" style="font-size:18px;font-weight:bold" id="sos-beds">—</div><div style="font-size:9px;color:var(--dim);margin-top:2px;letter-spacing:1px">ICU BEDS</div></div>
+            <div class="imi" style="background:var(--glass);border:1px solid var(--gb2);border-radius:10px;padding:12px;text-align:center"><div class="mono agreen" style="font-size:14px;font-weight:bold" id="sos-status">STANDBY</div><div style="font-size:9px;color:var(--dim);margin-top:2px;letter-spacing:1px">STATUS</div></div>
+          </div>
+          <div class="lang-btns" style="margin-top:4px">
+            <button class="lbtn on" onclick="setSosLang('en',this)">EN</button>
+            <button class="lbtn" onclick="setSosLang('ta',this)">தமிழ்</button>
+            <button class="lbtn" onclick="setSosLang('hi',this)">हिंदी</button>
+          </div>
+          <div id="sos-lang-msg" style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--cyan);text-align:center;max-width:280px;line-height:1.6">Tap SOS to dispatch nearest ambulance instantly.</div>
+        </div>
+      </div>
+
+      <!-- Golden Hour Timeline -->
+      <div class="gc">
+        <div class="clbl">Golden Hour Timeline <span class="tag c">LIVE TRACKING</span></div>
+        <div id="tl-steps">
+          <div class="tl-step"><div class="tl-icon pend" id="tl1">1</div><div><div class="tl-label">Ambulance Dispatched</div><div class="tl-sub">Unit #07 — GPS locked to your location</div><div class="tl-time" id="tl1t">Waiting...</div></div></div>
+          <div class="tl-step"><div class="tl-icon pend" id="tl2">2</div><div><div class="tl-label">Traffic Cleared</div><div class="tl-sub">Green corridor on GST Road activated</div><div class="tl-time" id="tl2t">Waiting...</div></div></div>
+          <div class="tl-step"><div class="tl-icon pend" id="tl3">3</div><div><div class="tl-label">Doctor Ready at ER</div><div class="tl-sub">Dr. Ravi Kumar — Cardiac team standing by</div><div class="tl-time" id="tl3t">Waiting...</div></div></div>
+          <div class="tl-step"><div class="tl-icon pend" id="tl4">4</div><div><div class="tl-label">Patient Arrival</div><div class="tl-sub">Apollo ER Bay 3 reserved and prepared</div><div class="tl-time" id="tl4t">ETA 4 MIN</div></div></div>
+          <div class="tl-step"><div class="tl-icon pend" id="tl5">5</div><div><div class="tl-label">ICU Admission Ready</div><div class="tl-sub">Bed 12-B prepped with vitals monitor</div><div class="tl-time" id="tl5t">ETA 7 MIN</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Map + Hospitals -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <!-- Map -->
+      <div class="gc">
+        <div class="clbl">Quantum Routing — Live Map <span class="tag c">TRACKING</span></div>
+        <div class="map-box" style="height:260px">
+          <canvas id="route-canvas" style="width:100%;height:100%"></canvas>
+          <div class="map-overlay" id="map-overlay">
+            <div style="font-size:32px">🗺️</div>
+            <div style="font-family:'Orbitron',monospace;font-size:11px;letter-spacing:2px;color:var(--cyan)">LOCATION DETECTED</div>
+            <div style="font-size:11px;color:var(--dim)">Chennai, Tamil Nadu</div>
+            <div style="font-size:10px;color:var(--dim);margin-top:4px">Tap SOS to activate live routing</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:14px;margin-top:12px;flex-wrap:wrap">
+          <div><div style="font-size:9px;color:var(--dim);letter-spacing:1px">ETA</div><div class="mono acyan" style="font-size:20px" id="map-eta">—</div></div>
+          <div><div style="font-size:9px;color:var(--dim);letter-spacing:1px">DISTANCE</div><div class="mono acyan" style="font-size:20px" id="map-dist">—</div></div>
+          <div><div style="font-size:9px;color:var(--dim);letter-spacing:1px">TRAFFIC</div><div class="mono" style="font-size:20px;color:var(--green)" id="map-traffic">—</div></div>
+          <div><div style="font-size:9px;color:var(--dim);letter-spacing:1px">ROAD BLOCK</div><div class="mono" style="font-size:20px" id="map-block">—</div></div>
+        </div>
+        <div class="obstacle-box" id="obstacle-box" style="display:none">⚠ <b>Road Block Detected</b> — Re-routing via Quantum Path</div>
+      </div>
+
+      <!-- AI Hospital Selection -->
+      <div class="gc">
+        <div class="clbl">AI Hospital Selection <span class="tag p">NEURAL SCORE</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px" id="sos-hosp-grid"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ AI VOICE PAGE ═══════════════════════ -->
+<div class="page" id="p-voice">
+  <div class="page-title">🎙️ AETHER AI VOICE <span class="tag p">MULTILINGUAL</span></div>
+  <div class="voice-center">
+    <div class="voice-circle" id="v-circle" onclick="toggleVoice()">🎙️</div>
+    <canvas id="voice-wave" width="360" height="70" style="max-width:100%"></canvas>
+    <div style="font-family:'Orbitron',monospace;font-size:9px;color:var(--purple);letter-spacing:3px" id="v-lang-lbl">LANGUAGE: ENGLISH</div>
+    <div class="lang-btns">
+      <button class="lbtn on" onclick="setVoiceLang('en',this)">ENGLISH</button>
+      <button class="lbtn" onclick="setVoiceLang('ta',this)">தமிழ் TAMIL</button>
+      <button class="lbtn" onclick="setVoiceLang('hi',this)">हिंदी HINDI</button>
+    </div>
+    <div class="transcript-box" id="transcript">Say a command or tap a quick action below...</div>
+    <div class="voice-cmds">
+      <div class="gc vcmd" onclick="runVoiceCmd('Find nearest hospital')"><div class="vcmd-icon">🏥</div><div class="vcmd-title">NEAREST HOSPITAL</div><div class="vcmd-sub">Find available beds</div></div>
+      <div class="gc vcmd" onclick="runVoiceCmd('Emergency SOS')"><div class="vcmd-icon">🚨</div><div class="vcmd-title">EMERGENCY SOS</div><div class="vcmd-sub">Dispatch ambulance</div></div>
+      <div class="gc vcmd" onclick="runVoiceCmd('Check ICU beds')"><div class="vcmd-icon">🛏</div><div class="vcmd-title">ICU STATUS</div><div class="vcmd-sub">Real-time bed count</div></div>
+      <div class="gc vcmd" onclick="runVoiceCmd('Symptom check')"><div class="vcmd-icon">🩺</div><div class="vcmd-title">SYMPTOM CHECK</div><div class="vcmd-sub">AI diagnosis assist</div></div>
+      <div class="gc vcmd" onclick="runVoiceCmd('My location')"><div class="vcmd-icon">📍</div><div class="vcmd-title">MY LOCATION</div><div class="vcmd-sub">Share GPS position</div></div>
+      <div class="gc vcmd" onclick="runVoiceCmd('Blood donor')"><div class="vcmd-icon">🩸</div><div class="vcmd-title">BLOOD DONOR</div><div class="vcmd-sub">Find compatible donors</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ WELLNESS PAGE ═══════════════════════ -->
+<div class="page" id="p-wellness">
+  <div class="page-title">💚 WELLNESS TRACKER <span class="tag g">BIO-SYNC</span></div>
+  <div class="wellness-grid" style="margin-bottom:14px">
+    <!-- HR -->
+    <div class="gc" style="text-align:center">
+      <div class="clbl" style="justify-content:center">Heart Rate</div>
+      <div class="ring-wrap">
+        <svg width="110" height="110" viewBox="0 0 110 110"><circle cx="55" cy="55" r="45" fill="none" stroke="rgba(0,242,255,.12)" stroke-width="9"/><circle id="hr-ring" cx="55" cy="55" r="45" fill="none" stroke="var(--cyan)" stroke-width="9" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="85" transform="rotate(-90 55 55)" style="transition:stroke-dashoffset 1s,stroke .3s"/></svg>
+        <div class="mono acyan" style="font-size:30px;font-weight:bold;margin-top:-8px" id="w-hr">78</div>
+        <div style="font-size:9px;color:var(--dim);letter-spacing:2px">BPM</div>
+      </div>
+    </div>
+    <!-- SpO2 -->
+    <div class="gc" style="text-align:center">
+      <div class="clbl" style="justify-content:center">SpO2 — Blood Oxygen</div>
+      <div class="ring-wrap">
+        <svg width="110" height="110" viewBox="0 0 110 110"><circle cx="55" cy="55" r="45" fill="none" stroke="rgba(160,32,240,.12)" stroke-width="9"/><circle cx="55" cy="55" r="45" fill="none" stroke="var(--purple)" stroke-width="9" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="17" transform="rotate(-90 55 55)" style="transition:stroke-dashoffset 1s"/></svg>
+        <div class="mono apurple" style="font-size:30px;font-weight:bold;margin-top:-8px">97%</div>
+        <div style="font-size:9px;color:var(--dim);letter-spacing:2px">OXYGEN SAT</div>
+      </div>
+    </div>
+    <!-- Steps -->
+    <div class="gc" style="text-align:center">
+      <div class="clbl" style="justify-content:center">Steps Today</div>
+      <div class="ring-wrap">
+        <svg width="110" height="110" viewBox="0 0 110 110"><circle cx="55" cy="55" r="45" fill="none" stroke="rgba(0,255,136,.12)" stroke-width="9"/><circle cx="55" cy="55" r="45" fill="none" stroke="var(--green)" stroke-width="9" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="141" transform="rotate(-90 55 55)" style="transition:stroke-dashoffset 1s"/></svg>
+        <div class="mono agreen" style="font-size:26px;font-weight:bold;margin-top:-8px">6,240</div>
+        <div style="font-size:9px;color:var(--dim);letter-spacing:2px">STEPS</div>
+      </div>
+    </div>
+    <!-- Sleep -->
+    <div class="gc" style="text-align:center">
+      <div class="clbl" style="justify-content:center">Sleep Quality</div>
+      <div class="ring-wrap">
+        <svg width="110" height="110" viewBox="0 0 110 110"><circle cx="55" cy="55" r="45" fill="none" stroke="rgba(255,149,0,.12)" stroke-width="9"/><circle cx="55" cy="55" r="45" fill="none" stroke="var(--orange)" stroke-width="9" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="68" transform="rotate(-90 55 55)" style="transition:stroke-dashoffset 1s"/></svg>
+        <div class="mono aorange" style="font-size:30px;font-weight:bold;margin-top:-8px">76%</div>
+        <div style="font-size:9px;color:var(--dim);letter-spacing:2px">QUALITY</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7 day trend -->
+  <div class="gc" style="margin-bottom:14px">
+    <div class="clbl">7-Day Heart Rate Trend <span class="tag c">BIOSYNC</span></div>
+    <canvas id="trend-canvas" style="width:100%;height:90px"></canvas>
+  </div>
+
+  <!-- AI Insights -->
+  <div class="gc">
+    <div class="clbl">AI Health Insights <span class="tag p">NEURAL ANALYSIS</span></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:6px">
+      <div style="background:rgba(0,242,255,.05);border:1px solid rgba(0,242,255,.1);border-radius:8px;padding:12px"><div style="font-size:11px;color:var(--cyan);font-family:'Orbitron',monospace;letter-spacing:1px;margin-bottom:5px">💡 CARDIAC RISK</div><div style="font-size:11px;color:var(--dim);line-height:1.6">Low risk. HR within normal range. Maintain hydration. Monitor if sustained above 100 bpm.</div></div>
+      <div style="background:rgba(0,255,136,.05);border:1px solid rgba(0,255,136,.1);border-radius:8px;padding:12px"><div style="font-size:11px;color:var(--green);font-family:'Orbitron',monospace;letter-spacing:1px;margin-bottom:5px">✓ ACTIVITY LEVEL</div><div style="font-size:11px;color:var(--dim);line-height:1.6">Good activity. 78% of daily goal achieved. Try 2,000 more steps before sleep.</div></div>
+      <div style="background:rgba(255,149,0,.05);border:1px solid rgba(255,149,0,.1);border-radius:8px;padding:12px"><div style="font-size:11px;color:var(--orange);font-family:'Orbitron',monospace;letter-spacing:1px;margin-bottom:5px">⚠ SLEEP PATTERN</div><div style="font-size:11px;color:var(--dim);line-height:1.6">Slightly below optimal. Aim for 7–8 hours tonight. Avoid screens 1 hour before bed.</div></div>
+      <div style="background:rgba(160,32,240,.05);border:1px solid rgba(160,32,240,.1);border-radius:8px;padding:12px"><div style="font-size:11px;color:var(--purple);font-family:'Orbitron',monospace;letter-spacing:1px;margin-bottom:5px">🧠 AI PREDICTION</div><div style="font-size:11px;color:var(--dim);line-height:1.6">Based on trend: low fatigue risk tomorrow. Blood oxygen stable. No anomalies detected.</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ HOSPITAL DASHBOARD ═══════════════════════ -->
+<div class="page" id="p-hospital">
+  <div class="page-title">🏥 HOSPITAL DASHBOARD <span class="tag g">APOLLO HOSPITALS</span></div>
+  <div class="hosp-dash-grid" style="margin-bottom:14px">
+    <div class="statbox gc"><div class="statbox-val acyan">4</div><div class="statbox-lbl">ICU BEDS FREE</div></div>
+    <div class="statbox gc"><div class="statbox-val agreen">3</div><div class="statbox-lbl">ER BAYS OPEN</div></div>
+    <div class="statbox gc"><div class="statbox-val apurple">2</div><div class="statbox-lbl">AMBULANCES</div></div>
+    <div class="statbox gc"><div class="statbox-val aorange">68%</div><div class="statbox-lbl">OCCUPANCY</div></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:16px;margin-bottom:14px">
+    <!-- Ward Loads -->
+    <div class="gc">
+      <div class="clbl">Ward Occupancy <span class="tag c">REAL TIME</span></div>
+      <div id="ward-bars">
+        <div style="background:rgba(0,242,255,.04);border:1px solid rgba(0,242,255,.08);border-radius:8px;padding:12px;margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-bottom:5px"><span>ICU</span><span class="mono" style="color:var(--orange)">68%</span></div>
+          <div class="prog-bg"><div class="prog-fill" style="width:68%;background:linear-gradient(90deg,var(--orange),#cc7700)"></div></div>
+          <div style="font-size:9px;color:var(--purple);margin-top:3px">⏱ AI: next bed ~8 min</div>
+        </div>
+        <div style="background:rgba(0,242,255,.04);border:1px solid rgba(0,242,255,.08);border-radius:8px;padding:12px;margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-bottom:5px"><span>EMERGENCY (ER)</span><span class="mono acyan">72%</span></div>
+          <div class="prog-bg"><div class="prog-fill" style="width:72%;background:linear-gradient(90deg,var(--cyan),#0090aa)"></div></div>
+          <div style="font-size:9px;color:var(--purple);margin-top:3px">⏱ AI: next bed ~6 min</div>
+        </div>
+        <div style="background:rgba(0,242,255,.04);border:1px solid rgba(0,242,255,.08);border-radius:8px;padding:12px;margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-bottom:5px"><span>OPERATION THEATRE</span><span class="mono acyan">55%</span></div>
+          <div class="prog-bg"><div class="prog-fill" style="width:55%;background:linear-gradient(90deg,var(--cyan),var(--purple))"></div></div>
+          <div style="font-size:9px;color:var(--purple);margin-top:3px">⏱ AI: next slot ~12 min</div>
+        </div>
+        <div style="background:rgba(0,242,255,.04);border:1px solid rgba(0,242,255,.08);border-radius:8px;padding:12px;margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-bottom:5px"><span>NICU</span><span class="mono acyan">40%</span></div>
+          <div class="prog-bg"><div class="prog-fill" style="width:40%;background:linear-gradient(90deg,var(--green),#00aa55)"></div></div>
+          <div style="font-size:9px;color:var(--purple);margin-top:3px">⏱ AI: 4 beds available</div>
+        </div>
+        <div style="background:rgba(0,242,255,.04);border:1px solid rgba(0,242,255,.08);border-radius:8px;padding:12px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-bottom:5px"><span>NEUROLOGY</span><span class="mono ared">80%</span></div>
+          <div class="prog-bg"><div class="prog-fill" style="width:80%;background:linear-gradient(90deg,var(--red),#aa2222)"></div></div>
+          <div style="font-size:9px;color:var(--purple);margin-top:3px">⏱ AI: next bed ~22 min</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Update controls -->
+    <div>
+      <div class="gc" style="margin-bottom:14px">
+        <div class="clbl">Update Bed Availability</div>
+        <div class="inp-group"><div class="inp-label">ICU FREE BEDS</div><input class="inp" type="number" value="4" id="upd-icu"/></div>
+        <div class="inp-group"><div class="inp-label">ER BAYS OPEN</div><input class="inp" type="number" value="3" id="upd-er"/></div>
+        <div class="inp-group"><div class="inp-label">AMBULANCES AVAILABLE</div><input class="inp" type="number" value="2" id="upd-amb"/></div>
+        <button class="btn btn-solid" style="width:100%" onclick="updateHospitalData()">UPDATE LIVE →</button>
+        <div id="upd-msg" style="display:none;margin-top:8px;padding:8px;background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.2);border-radius:6px;font-size:11px;color:var(--green);text-align:center">✓ Data updated successfully</div>
+      </div>
+      <div class="gc">
+        <div class="clbl">Hospital Info</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--dim)">
+          <div>📍 <span style="color:var(--text)">Greams Road, Chennai — 600006</span></div>
+          <div>📞 <span style="color:var(--text)">+91 44 2829 3333</span></div>
+          <div>🏥 <span style="color:var(--text)">280 Total Beds</span></div>
+          <div>⭐ <span style="color:var(--cyan)">Cardiac · Neuro · Oncology</span></div>
+          <div>🔴 <span style="color:var(--text)">24/7 Emergency Services</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live Emergency Requests -->
+  <div class="gc">
+    <div class="clbl">Live Emergency Requests <span class="tag r">INCOMING</span></div>
+    <div class="request-list">
+      <div class="req-card urgent">
+        <div><div style="font-family:'Orbitron',monospace;font-size:11px;font-weight:700;margin-bottom:2px">CARDIAC ARREST — Zone 4</div><div style="font-size:11px;color:var(--dim)">Male, 54 — A+ Blood — Amb #07 en route — ETA 3 min</div></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div class="req-status status-active">URGENT</div>
+          <button class="btn btn-cyan" style="padding:5px 12px;font-size:10px" onclick="acceptRequest(this)">ACCEPT</button>
+        </div>
+      </div>
+      <div class="req-card moderate">
+        <div><div style="font-family:'Orbitron',monospace;font-size:11px;font-weight:700;margin-bottom:2px">TRAUMA — Adyar</div><div style="font-size:11px;color:var(--dim)">Female, 32 — O+ Blood — Amb #12 en route — ETA 7 min</div></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div class="req-status status-pending">PENDING</div>
+          <button class="btn btn-cyan" style="padding:5px 12px;font-size:10px" onclick="acceptRequest(this)">ACCEPT</button>
+        </div>
+      </div>
+      <div class="req-card">
+        <div><div style="font-family:'Orbitron',monospace;font-size:11px;font-weight:700;margin-bottom:2px">STROKE — T Nagar</div><div style="font-size:11px;color:var(--dim)">Male, 67 — B+ Blood — Kaveri primary, Apollo backup</div></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div class="req-status status-done">RESOLVED</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ ADMIN DASHBOARD ═══════════════════════ -->
+<div class="page" id="p-admin">
+  <div class="page-title">⚙️ ADMIN DASHBOARD <span class="tag p">SYSTEM CONTROL</span></div>
+  <div class="admin-grid" style="margin-bottom:14px">
+    <div class="statbox gc"><div class="statbox-val acyan" id="adm-users">1,284</div><div class="statbox-lbl">TOTAL USERS</div></div>
+    <div class="statbox gc"><div class="statbox-val apurple">6</div><div class="statbox-lbl">HOSPITALS ONLINE</div></div>
+    <div class="statbox gc"><div class="statbox-val ared" id="adm-em">3</div><div class="statbox-lbl">ACTIVE EMERGENCIES</div></div>
+    <div class="statbox gc"><div class="statbox-val agreen">99.7%</div><div class="statbox-lbl">UPTIME</div></div>
+  </div>
+
+  <div class="admin-mid" style="margin-bottom:14px">
+    <!-- System stats -->
+    <div class="gc">
+      <div class="clbl">System Overview</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+        <div style="background:rgba(0,242,255,.05);border:1px solid rgba(0,242,255,.1);border-radius:8px;padding:12px"><div style="font-size:10px;color:var(--dim);letter-spacing:1px;margin-bottom:4px">TOTAL EMERGENCIES TODAY</div><div class="mono acyan" style="font-size:22px">47</div></div>
+        <div style="background:rgba(0,255,136,.05);border:1px solid rgba(0,255,136,.1);border-radius:8px;padding:12px"><div style="font-size:10px;color:var(--dim);letter-spacing:1px;margin-bottom:4px">RESOLVED</div><div class="mono agreen" style="font-size:22px">44</div></div>
+        <div style="background:rgba(255,149,0,.05);border:1px solid rgba(255,149,0,.1);border-radius:8px;padding:12px"><div style="font-size:10px;color:var(--dim);letter-spacing:1px;margin-bottom:4px">AVG RESPONSE TIME</div><div class="mono aorange" style="font-size:22px">4.2m</div></div>
+        <div style="background:rgba(160,32,240,.05);border:1px solid rgba(160,32,240,.1);border-radius:8px;padding:12px"><div style="font-size:10px;color:var(--dim);letter-spacing:1px;margin-bottom:4px">AI ACCURACY</div><div class="mono apurple" style="font-size:22px">96%</div></div>
+      </div>
+      <div class="clbl" style="margin-top:4px">Hospital Network Status</div>
+      <div style="display:flex;flex-direction:column;gap:8px" id="hosp-status-list">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:rgba(255,255,255,.03);border-radius:7px;font-size:12px"><span>Apollo Hospitals — Greams Rd</span><span class="tag g">ONLINE</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:rgba(255,255,255,.03);border-radius:7px;font-size:12px"><span>MIOT International — Manapakkam</span><span class="tag g">ONLINE</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:rgba(255,255,255,.03);border-radius:7px;font-size:12px"><span>Fortis Malar — Adyar</span><span class="tag g">ONLINE</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:rgba(255,255,255,.03);border-radius:7px;font-size:12px"><span>Kaveri Hospital — Vadapalani</span><span class="tag c">MODERATE</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:rgba(255,255,255,.03);border-radius:7px;font-size:12px"><span>SRMC — Porur</span><span class="tag g">ONLINE</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:rgba(255,255,255,.03);border-radius:7px;font-size:12px"><span>Global Hospitals — Perumbur</span><span class="tag g">ONLINE</span></div>
+      </div>
+    </div>
+    <!-- Reports + controls -->
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="gc">
+        <div class="clbl">Quick Controls</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn btn-red" style="width:100%" onclick="adminBroadcast()">📢 BROADCAST ALERT</button>
+          <button class="btn btn-cyan" style="width:100%">📊 EXPORT REPORT</button>
+          <button class="btn btn-purple" style="width:100%">🔄 SYNC ALL HOSPITALS</button>
+          <button class="btn btn-cyan" style="width:100%">📋 VIEW ALL USERS</button>
+        </div>
+      </div>
+      <div class="gc">
+        <div class="clbl">AI Model Status</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:12px">
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">Hospital Scorer v4.2</span><span class="tag g">ACTIVE</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">Route Optimizer v3.1</span><span class="tag g">ACTIVE</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">Vacancy Predictor v2.8</span><span class="tag g">ACTIVE</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">Wellness Analyzer v1.5</span><span class="tag c">TRAINING</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ PROFILE PAGE ═══════════════════════ -->
+<div class="page" id="p-profile">
+  <div class="page-title">👤 MY PROFILE</div>
+  <div class="profile-layout">
+    <!-- Left card -->
+    <div>
+      <div class="gc" style="text-align:center;margin-bottom:14px">
+        <div class="profile-avatar">👤</div>
+        <div class="profile-name" id="prof-name">Hema Priya</div>
+        <div class="profile-role">REGISTERED USER</div>
+        <div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap">
+          <span class="tag c">A+ BLOOD</span>
+          <span class="tag g">ACTIVE</span>
+        </div>
+        <div style="margin-top:16px;display:flex;flex-direction:column;gap:8px;text-align:left">
+          <div style="font-size:11px;color:var(--dim)">📞 <span style="color:var(--text)">+91 98765 43210</span></div>
+          <div style="font-size:11px;color:var(--dim)">✉️ <span style="color:var(--text)">hema@example.com</span></div>
+          <div style="font-size:11px;color:var(--dim)">🎂 <span style="color:var(--text)">22 years old</span></div>
+          <div style="font-size:11px;color:var(--dim)">📍 <span style="color:var(--text)">Chennai, Tamil Nadu</span></div>
+        </div>
+      </div>
+      <div class="gc">
+        <div class="clbl">Emergency Contacts</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="padding:10px;background:rgba(255,255,255,.03);border-radius:8px"><div style="font-size:12px;font-weight:600">Priya (Mother)</div><div style="font-size:11px;color:var(--dim)">+91 98765 11111</div></div>
+          <div style="padding:10px;background:rgba(255,255,255,.03);border-radius:8px"><div style="font-size:12px;font-weight:600">Ramesh (Father)</div><div style="font-size:11px;color:var(--dim)">+91 98765 22222</div></div>
+          <button class="btn btn-cyan" style="width:100%;margin-top:4px">+ ADD CONTACT</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right cards -->
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="gc">
+        <div class="clbl">Medical History</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+          <div class="inp-group"><div class="inp-label">FULL NAME</div><input class="inp" value="Hema Priya"/></div>
+          <div class="inp-group"><div class="inp-label">BLOOD GROUP</div><select class="inp"><option>A+</option><option>A-</option><option>B+</option><option>O+</option><option>AB+</option></select></div>
+          <div class="inp-group"><div class="inp-label">AGE</div><input class="inp" type="number" value="22"/></div>
+          <div class="inp-group"><div class="inp-label">PHONE</div><input class="inp" value="+91 98765 43210"/></div>
+        </div>
+        <div class="inp-group"><div class="inp-label">KNOWN CONDITIONS</div><textarea class="inp" rows="2" style="resize:none">No known conditions. Mild seasonal allergies.</textarea></div>
+        <div class="inp-group"><div class="inp-label">CURRENT MEDICATIONS</div><textarea class="inp" rows="2" style="resize:none">Cetirizine 10mg (seasonal)</textarea></div>
+        <button class="btn btn-solid" style="width:100%" onclick="saveProfile()">SAVE PROFILE →</button>
+        <div id="prof-save-msg" style="display:none;margin-top:8px;padding:8px;background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.2);border-radius:6px;font-size:11px;color:var(--green);text-align:center">✓ Profile saved successfully</div>
+      </div>
+
+      <div class="gc">
+        <div class="clbl">My Emergency History</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:rgba(255,255,255,.03);border-radius:8px;font-size:12px"><div><div>Cardiac Episode — Apollo</div><div style="font-size:10px;color:var(--dim)">15 Apr 2024 · Resolved in 6 min</div></div><span class="tag g">RESOLVED</span></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:rgba(255,255,255,.03);border-radius:8px;font-size:12px"><div><div>Allergic Reaction — Fortis</div><div style="font-size:10px;color:var(--dim)">02 Jan 2024 · Resolved in 9 min</div></div><span class="tag g">RESOLVED</span></div>
+        </div>
+        <div style="margin-top:12px"><button class="btn btn-solid-red" style="width:100%" onclick="showPage('sos')">🚨 EMERGENCY SOS</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /app -->
+
+<script>
+'use strict';
+// ═══════════════════════════════════════════════════
+// HOSPITAL DATA + AI SCORING ALGORITHM
+// ═══════════════════════════════════════════════════
+const HOSPITALS = [
+  {id:0,name:'Apollo',loc:'Greams Rd',dist:3.2,traffic:1,icuFree:4,spec:'Cardiac',beds:280,load:68,eta:'4 MIN',wards:{ICU:68,ER:72,OT:55,NICU:40,Neuro:80}},
+  {id:1,name:'MIOT Intl',loc:'Manapakkam',dist:6.1,traffic:2,icuFree:2,spec:'Ortho',beds:350,load:81,eta:'9 MIN',wards:{ICU:81,ER:65,OT:90,NICU:30,Neuro:50}},
+  {id:2,name:'Fortis',loc:'Adyar',dist:4.8,traffic:3,icuFree:6,spec:'Multi',beds:240,load:55,eta:'7 MIN',wards:{ICU:55,ER:60,OT:45,NICU:70,Neuro:40}},
+  {id:3,name:'Kaveri',loc:'Vadapalani',dist:5.2,traffic:2,icuFree:3,spec:'Neuro',beds:180,load:74,eta:'8 MIN',wards:{ICU:74,ER:58,OT:60,NICU:20,Neuro:90}},
+];
+
+const OBSTACLES = [
+  {loc:'Anna Salai',type:'Construction'},
+  {loc:'GST Road',type:'Protest'},
+  {loc:'OMR Flyover',type:'Accident'},
+];
+
+let activeObstacles = [];
+
+/**
+ * calculateBestNode — AetherPulse Neural AI Algorithm
+ * Score = (dist×0.4) + (traffic×10×0.3) + ((100−aiVacancy30min)×0.3) + obstaclePenalty
+ * Lower score = optimal rescue node
+ */
+function calculateBestNode() {
+  activeObstacles = OBSTACLES.filter(() => Math.random() < 0.25);
+  return HOSPITALS.map(h => {
+    const aiVac = Math.min(100, h.icuFree * 8 + Math.random() * 5);
+    const obsPenalty = activeObstacles.length * 1.5;
+    const score = (h.dist*0.4) + (h.traffic*10*0.3) + ((100-aiVac)*0.3) + obsPenalty;
+    return {...h, score: Math.round(score*10)/10, aiVac: Math.round(aiVac)};
+  }).sort((a,b) => a.score - b.score);
+}
+
+function loadColor(l){return l>85?'var(--red)':l>65?'var(--orange)':'var(--cyan)'}
+function tMinus(h){return `⏱ AI: ICU bed ~${Math.max(2,Math.round(h.load/100*25+h.traffic*2))} min`}
+function trafficLabel(t){return ['','LOW','MED','HIGH'][t]||'—'}
+function trafficColor(t){return ['','var(--green)','var(--orange)','var(--red)'][t]||'var(--dim)'}
+
+function renderHospitalGrid(containerId, scored, onClick) {
+  const bestId = scored[0].id;
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = scored.map(h => `
+    <div class="hosp-card ${h.id===bestId?'best':''}" onclick="${onClick}(${h.id})">
+      ${h.id===bestId?'<div class="best-badge">BEST CHOICE</div>':''}
+      <div class="hosp-name">${h.name}</div>
+      <div style="font-size:9px;color:var(--dim);margin-bottom:7px">${h.loc}</div>
+      <div class="hosp-score">${h.score}</div>
+      <div style="font-size:9px;color:var(--dim);margin-bottom:3px">RESCUE SCORE (lower=better)</div>
+      <div class="hosp-meta">📍 ${h.dist}km<br>🛏 ${h.icuFree} ICU free<br>⏱ ETA ${h.eta}</div>
+      <div class="tminus">${tMinus(h)}</div>
+      ${activeObstacles.length?`<div style="font-size:9px;color:var(--orange);margin-top:3px">⚠ Reroute: ${activeObstacles[0].loc}</div>`:''}
+    </div>`).join('');
+}
+
+let scored = calculateBestNode();
+renderHospitalGrid('hosp-grid-dash', scored, 'selectHospital');
+renderHospitalGrid('sos-hosp-grid', scored, 'selectHospital');
+
+function selectHospital(id) {
+  showPage('sos');
+}
+
+setInterval(() => {
+  scored = calculateBestNode();
+  renderHospitalGrid('hosp-grid-dash', scored, 'selectHospital');
+  renderHospitalGrid('sos-hosp-grid', scored, 'selectHospital');
+}, 30000);
+
+// ═══════════════════════════════════════════════════
+// NEURAL PARTICLE CANVAS
+// ═══════════════════════════════════════════════════
+const nc = document.getElementById('nc');
+const nctx = nc.getContext('2d');
+let mx = -9999, my = -9999, alertMode = false;
+
+function resizeNC() { nc.width = innerWidth; nc.height = innerHeight; }
+resizeNC();
+addEventListener('resize', resizeNC);
+addEventListener('mousemove', e => { mx=e.clientX; my=e.clientY; });
+
+const particles = Array.from({length:100}, () => {
+  const p = {x:0,y:0,vx:0,vy:0,r:0,a:0};
+  resetP(p); return p;
+});
+function resetP(p) {
+  p.x = Math.random()*nc.width; p.y = Math.random()*nc.height;
+  p.vx = (Math.random()-.5)*.4; p.vy = (Math.random()-.5)*.4;
+  p.r = Math.random()*1.4+.4; p.a = Math.random()*.45+.12;
+}
+function drawNeural() {
+  nctx.clearRect(0,0,nc.width,nc.height);
+  const col = alertMode ? '#FF3131' : '#00F2FF';
+  for (let i=0; i<particles.length; i++) {
+    const pi = particles[i];
+    for (let j=i+1; j<particles.length; j++) {
+      const pj = particles[j];
+      const dx=pi.x-pj.x, dy=pi.y-pj.y, d=Math.sqrt(dx*dx+dy*dy);
+      if (d<90) { nctx.beginPath(); nctx.moveTo(pi.x,pi.y); nctx.lineTo(pj.x,pj.y); nctx.strokeStyle=col; nctx.globalAlpha=(1-d/90)*.12; nctx.lineWidth=.5; nctx.stroke(); }
+    }
+    nctx.globalAlpha=pi.a*.5; nctx.fillStyle=col; nctx.beginPath(); nctx.arc(pi.x,pi.y,pi.r,0,Math.PI*2); nctx.fill();
+    const ddx=mx-pi.x, ddy=my-pi.y, dd=Math.sqrt(ddx*ddx+ddy*ddy);
+    if (dd<130) { pi.vx-=ddx/dd*.25; pi.vy-=ddy/dd*.25; }
+    pi.vx*=.98; pi.vy*=.98; pi.x+=pi.vx; pi.y+=pi.vy;
+    if (pi.x<0||pi.x>nc.width||pi.y<0||pi.y>nc.height) resetP(pi);
+  }
+  nctx.globalAlpha=1;
+  requestAnimationFrame(drawNeural);
+}
+drawNeural();
+
+// ═══════════════════════════════════════════════════
+// PAGE ROUTER
+// ═══════════════════════════════════════════════════
+const PAGE_MAP = {
+  landing:'p-landing', auth:'p-auth', dashboard:'p-dashboard',
+  sos:'p-sos', voice:'p-voice', wellness:'p-wellness',
+  hospital:'p-hospital', admin:'p-admin', profile:'p-profile',
+};
+const NAV_MAP = {
+  dashboard:0, sos:1, voice:2, wellness:3, hospital:4, admin:5,
+};
+
+function showPage(name) {
+  Object.values(PAGE_MAP).forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('on');
+  });
+  const target = document.getElementById(PAGE_MAP[name]);
+  if (target) target.classList.add('on');
+  document.querySelectorAll('.ntab').forEach((t,i) => t.classList.toggle('on', i === NAV_MAP[name]));
+  if (name==='wellness') { setTimeout(drawTrend,100); }
+  if (name==='voice') { setTimeout(()=>startWave('voice-wave','purple'),100); }
+  if (name==='sos') { startWave('sos-wave','red'); }
+  window.scrollTo(0,0);
+}
+
+// ═══════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════
+function switchAuth(mode) {
+  document.getElementById('login-form').style.display = mode==='login'?'block':'none';
+  document.getElementById('register-form').style.display = mode==='register'?'block':'none';
+  document.getElementById('login-btn').classList.toggle('on', mode==='login');
+  document.getElementById('register-btn').classList.toggle('on', mode==='register');
+}
+
+function doLogin(role) {
+  if (role==='hospital') { showPage('hospital'); return; }
+  if (role==='admin') { showPage('admin'); return; }
+  showPage('dashboard');
+}
+
+// ═══════════════════════════════════════════════════
+// HEATMAP
+// ═══════════════════════════════════════════════════
+function drawHeatmap() {
+  const c = document.getElementById('heatmap');
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  c.width = c.offsetWidth||300; c.height = 140;
+  const zones = [
+    {x:.15,y:.35,r:46,col:'rgba(255,49,49,.65)'},
+    {x:.5,y:.62,r:36,col:'rgba(255,149,0,.55)'},
+    {x:.74,y:.24,r:30,col:'rgba(0,242,255,.45)'},
+    {x:.32,y:.72,r:40,col:'rgba(255,49,49,.42)'},
+    {x:.88,y:.65,r:26,col:'rgba(0,255,136,.42)'},
+  ];
+  ctx.fillStyle='rgba(0,0,0,.35)'; ctx.fillRect(0,0,c.width,c.height);
+  ctx.strokeStyle='rgba(0,242,255,.06)'; ctx.lineWidth=.5;
+  for(let x=0;x<c.width;x+=22){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,c.height);ctx.stroke()}
+  for(let y=0;y<c.height;y+=22){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(c.width,y);ctx.stroke()}
+  zones.forEach(z=>{
+    const g=ctx.createRadialGradient(z.x*c.width,z.y*c.height,0,z.x*c.width,z.y*c.height,z.r);
+    g.addColorStop(0,z.col); g.addColorStop(1,'transparent');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(z.x*c.width,z.y*c.height,z.r,0,Math.PI*2); ctx.fill();
+  });
+  ['Zone A','Central','North','South','East'].forEach((l,i)=>{
+    ctx.fillStyle='rgba(255,255,255,.55)'; ctx.font='9px Rajdhani';
+    ctx.fillText(l, zones[i].x*c.width-14, zones[i].y*c.height+3);
+  });
+}
+setTimeout(drawHeatmap, 300);
+
+// ═══════════════════════════════════════════════════
+// HR SIMULATION
+// ═══════════════════════════════════════════════════
+let hr = 78, hrTrend = 1;
+setInterval(() => {
+  hr += (Math.random()-.4)*hrTrend*3;
+  hr = Math.max(52, Math.min(148, hr));
+  const r = Math.round(hr);
+  ['hr-val','w-hr'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent=r; el.style.color=r>120?'var(--red)':'var(--cyan)'; }
+  });
+  // wellness ring
+  const ring = document.getElementById('hr-ring');
+  if (ring) {
+    const off = 283 - (283*(r/180));
+    ring.setAttribute('stroke-dashoffset', off);
+    ring.setAttribute('stroke', r>120?'var(--red)':'var(--cyan)');
+  }
+  if (r>120 && !alertMode) setAlert(true);
+  if (r<=100 && alertMode) setAlert(false);
+  if (Math.random()<.015) hrTrend *= -1;
+}, 1300);
+
+function setAlert(on) {
+  alertMode = on;
+  document.body.classList.toggle('alert-mode', on);
+  const ab = document.getElementById('ab');
+  ab.style.display = on ? 'flex' : 'none';
+  // shift nav down when alert visible
+  document.querySelector('nav').style.top = on ? '38px' : '0';
+}
+
+// Vitality ticker
+setInterval(() => {
+  const v = Math.round(65+Math.random()*22);
+  ['v-num'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=v});
+  const vf = document.getElementById('v-fill');
+  if(vf) vf.style.width=v+'%';
+  document.getElementById('d-vitality').textContent=v+'%';
+  const icu=Math.round(8+Math.random()*8);
+  document.getElementById('d-icu').textContent=icu;
+  if(document.getElementById('icu-cnt'))document.getElementById('icu-cnt').textContent=icu;
+  document.getElementById('d-amb').textContent=Math.round(10+Math.random()*8);
+}, 4500);
+
+// Clock
+function updateClock() {
+  const el = document.getElementById('clock-display');
+  if (el) el.textContent = new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
+}
+updateClock(); setInterval(updateClock, 1000);
+
+// ═══════════════════════════════════════════════════
+// SOS SYSTEM
+// ═══════════════════════════════════════════════════
+let sosFired = false, sosTimers = [];
+const SOS_LANG = {
+  en: 'Tap SOS to dispatch nearest ambulance instantly.',
+  ta: 'அருகில் உள்ள ஆம்புலன்ஸை உடனடியாக அனுப்ப SOS ஐ தட்டவும்.',
+  hi: 'निकटतम एम्बुलेंस तुरंत भेजने के लिए SOS दबाएं।'
+};
+
+function setSosLang(l, btn) {
+  document.querySelectorAll('#p-sos .lang-btns .lbtn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('sos-lang-msg').textContent = SOS_LANG[l];
+}
+
+function fireSOS() {
+  if (sosFired) return;
+  sosFired = true;
+  const best = scored[0];
+  document.getElementById('sos-inner').classList.add('fired');
+  document.getElementById('sos-sub').textContent = 'DISPATCHING...';
+  document.getElementById('sos-status').textContent = 'DISPATCHING';
+  document.getElementById('sos-status').style.color = 'var(--orange)';
+
+  // Activate map
+  document.getElementById('map-overlay').style.display = 'none';
+  drawQuantumRoute(best);
+
+  // Update map stats
+  document.getElementById('map-eta').textContent = best.eta;
+  document.getElementById('map-dist').textContent = best.dist+' KM';
+  document.getElementById('map-traffic').textContent = trafficLabel(best.traffic);
+  document.getElementById('map-traffic').style.color = trafficColor(best.traffic);
+
+  // Obstacle
+  if (activeObstacles.length) {
+    document.getElementById('obstacle-box').style.display = 'block';
+    document.getElementById('obstacle-box').innerHTML = `⚠ <b>Road Block Detected</b> — ${activeObstacles[0].type} at ${activeObstacles[0].loc}<br><span style="color:var(--cyan)">→ Re-routing via Quantum Path — ETA +1 min</span>`;
+    document.getElementById('map-block').textContent = activeObstacles[0].loc;
+    document.getElementById('map-block').style.color = 'var(--orange)';
+  } else {
+    document.getElementById('map-block').textContent = 'NONE';
+    document.getElementById('map-block').style.color = 'var(--green)';
+  }
+
+  setAlert(true);
+  animateTimeline();
+
+  // Delayed updates
+  sosTimers.push(setTimeout(()=>{
+    document.getElementById('sos-eta').textContent = best.eta;
+    document.getElementById('sos-hosp').textContent = best.name;
+    document.getElementById('sos-beds').textContent = best.icuFree+' ICU';
+    document.getElementById('sos-status').textContent = 'DISPATCHED';
+    document.getElementById('sos-status').style.color = 'var(--red)';
+    document.getElementById('sos-sub').textContent = 'DISPATCHED';
+  }, 1200));
+
+  sosTimers.push(setTimeout(()=>{ sosFired=false; }, 15000));
+}
+
+function animateTimeline() {
+  const steps = [
+    {id:'tl1',t:0,time:'T-0:00 — Ambulance #07 dispatched'},
+    {id:'tl2',t:1800,time:'T+0:45 — Green corridor activated'},
+    {id:'tl3',t:3600,time:'T+2:10 — Doctor ready at ER Bay 3'},
+    {id:'tl4',t:5400,time:'ETA 4 MIN — Bay prepared'},
+    {id:'tl5',t:7200,time:'ETA 7 MIN — ICU Bed 12-B ready'},
+  ];
+  steps.forEach((s,i) => {
+    const ico = document.getElementById(s.id);
+    const tim = document.getElementById(s.id+'t');
+    if (!ico) return;
+    setTimeout(()=>{
+      ico.className='tl-icon active';
+      ico.textContent='→';
+      if(tim)tim.textContent=s.time;
+      setTimeout(()=>{
+        ico.className='tl-icon done';
+        ico.textContent='✓';
+      }, 1500);
+    }, s.t);
+  });
+}
+
+// ═══════════════════════════════════════════════════
+// QUANTUM ROUTE CANVAS
+// ═══════════════════════════════════════════════════
+let routeRaf;
+function drawQuantumRoute(h) {
+  const c = document.getElementById('route-canvas');
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  c.width = c.offsetWidth||400; c.height = 260;
+  const pts = [{x:50,y:220},{x:110,y:180},{x:180,y:135},{x:255,y:95},{x:c.width-50,y:55}];
+  let prog = 0;
+
+  function frame() {
+    ctx.clearRect(0,0,c.width,c.height);
+    ctx.fillStyle='rgba(0,0,0,.6)'; ctx.fillRect(0,0,c.width,c.height);
+    ctx.strokeStyle='rgba(0,242,255,.05)'; ctx.lineWidth=.5;
+    for(let x=0;x<c.width;x+=20){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,c.height);ctx.stroke()}
+    for(let y=0;y<c.height;y+=20){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(c.width,y);ctx.stroke()}
+    // Road
+    ctx.strokeStyle='rgba(0,242,255,.1)'; ctx.lineWidth=10; ctx.lineCap='round'; ctx.lineJoin='round';
+    ctx.beginPath(); pts.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)); ctx.stroke();
+    // Glow path
+    const tot=pts.length-1, ci=Math.min(Math.floor(prog*tot),tot-1), fr=(prog*tot)%1;
+    const ep = ci<tot?{x:pts[ci].x+(pts[ci+1].x-pts[ci].x)*fr,y:pts[ci].y+(pts[ci+1].y-pts[ci].y)*fr}:pts[tot];
+    ctx.shadowBlur=16; ctx.shadowColor='#00F2FF'; ctx.strokeStyle='#00F2FF'; ctx.lineWidth=2.5;
+    ctx.beginPath(); pts.slice(0,ci+1).forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));
+    ctx.lineTo(ep.x,ep.y); ctx.stroke(); ctx.shadowBlur=0;
+    ctx.fillStyle='#00F2FF'; ctx.shadowBlur=12; ctx.shadowColor='#00F2FF';
+    ctx.beginPath(); ctx.arc(ep.x,ep.y,5,0,Math.PI*2); ctx.fill(); ctx.shadowBlur=0;
+    // Labels
+    ctx.fillStyle='rgba(0,242,255,.65)'; ctx.font='bold 10px Rajdhani'; ctx.fillText('📍 YOU',pts[0].x-8,pts[0].y+18);
+    ctx.fillStyle='#00F2FF'; ctx.fillText('🏥 '+h.name.toUpperCase(),pts[tot].x-25,pts[tot].y-14);
+    ctx.fillStyle='rgba(0,242,255,.2)'; ctx.beginPath(); ctx.arc(pts[tot].x,pts[tot].y,12,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#00F2FF'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(pts[tot].x,pts[tot].y,12,0,Math.PI*2); ctx.stroke();
+    prog = prog<1 ? prog+.006 : 0;
+    routeRaf = requestAnimationFrame(frame);
+  }
+  cancelAnimationFrame(routeRaf); frame();
+}
+
+// ═══════════════════════════════════════════════════
+// VOICE WAVE
+// ═══════════════════════════════════════════════════
+const waveRafs = {};
+function startWave(canvasId, color) {
+  const c = document.getElementById(canvasId);
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  const col = color==='red'?'#FF3131':color==='purple'?'#A020F0':'#00F2FF';
+  let t = 0;
+  function frame() {
+    ctx.clearRect(0,0,c.width,c.height);
+    ctx.strokeStyle=col; ctx.lineWidth=2; ctx.shadowBlur=8; ctx.shadowColor=col;
+    ctx.beginPath();
+    for(let x=0;x<c.width;x++){
+      const amp=12+Math.sin(x*.04+t)*8;
+      const y=c.height/2+Math.sin(x*.025+t*1.4)*amp;
+      x===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    }
+    ctx.stroke(); ctx.shadowBlur=0; t+=.07;
+    waveRafs[canvasId]=requestAnimationFrame(frame);
+  }
+  cancelAnimationFrame(waveRafs[canvasId]); frame();
+}
+
+// ═══════════════════════════════════════════════════
+// AI VOICE ASSISTANT
+// ═══════════════════════════════════════════════════
+let voiceLang = 'en', voiceOn = false;
+const VOICE_RESPONSES = {
+  en: {
+    'Find nearest hospital':'Apollo Hospital, 3.2km away — 4 ICU beds available. Routing ambulance now. ETA: 4 minutes.',
+    'Emergency SOS':'Dispatching Ambulance #07 to your GPS location. ETA 4 minutes. Dr. Ravi Kumar alerted at Apollo ER.',
+    'Check ICU beds':'Apollo: 4 free | Fortis: 6 free | Kaveri: 3 free | MIOT: 2 free. Apollo is optimal.',
+    'Symptom check':'Describe your symptoms. Based on severity, I will route you to the nearest appropriate specialist.',
+    'My location':'GPS: Chennai, Tamil Nadu — 13.0827°N, 80.2707°E. Nearest hospital: Apollo, 3.2km.',
+    'Blood donor':'Searching A+ donors in 5km radius... Found 3 compatible donors. Sending alert now.',
+  },
+  ta: {
+    'Find nearest hospital':'அப்பல்லோ மருத்துவமனை 3.2 கிமீ தொலைவில். 4 ICU படுக்கைகள் கிடைக்கின்றன. ஆம்புலன்ஸ் அனுப்பப்படுகிறது.',
+    'Emergency SOS':'ஆம்புலன்ஸ் #07 உங்கள் GPS இடத்திற்கு அனுப்பப்படுகிறது. 4 நிமிடங்களில் வரும்.',
+    'Check ICU beds':'அப்பல்லோ: 4 | ஃபோர்டிஸ்: 6 | காவேரி: 3 | MIOT: 2 படுக்கைகள் கிடைக்கின்றன.',
+    'Symptom check':'உங்கள் அறிகுறிகளை விவரிக்கவும். AI பகுப்பாய்வு செய்கிறேன்.',
+    'My location':'GPS: சென்னை, தமிழ்நாடு. அருகில் உள்ள மருத்துவமனை: அப்பல்லோ, 3.2 கிமீ.',
+    'Blood donor':'5 கிமீ சுற்றளவில் A+ இரத்த தாதாக்களை தேடுகிறேன்... 3 பொருத்தமான தாதாக்கள் கண்டுபிடிக்கப்பட்டனர்.',
+  },
+  hi: {
+    'Find nearest hospital':'अपोलो अस्पताल 3.2 किमी दूर — 4 ICU बेड उपलब्ध। एम्बुलेंस रूट हो रही है।',
+    'Emergency SOS':'एम्बुलेंस #07 आपके GPS स्थान पर भेजी जा रही है। ETA 4 मिनट।',
+    'Check ICU beds':'अपोलो: 4 | फोर्टिस: 6 | कावेरी: 3 | MIOT: 2 बेड उपलब्ध।',
+    'Symptom check':'अपने लक्षण बताएं। AI विश्लेषण करेगा और नजदीकी विशेषज्ञ को रूट करेगा।',
+    'My location':'GPS: चेन्नई, तमिलनाडु। नजदीकी अस्पताल: अपोलो, 3.2 किमी।',
+    'Blood donor':'5 किमी में A+ दाता खोज रहे हैं... 3 दाता मिले। अलर्ट भेजा जा रहा है।',
+  }
+};
+const LANG_LABELS = {en:'LANGUAGE: ENGLISH', ta:'மொழி: தமிழ்', hi:'भाषा: हिंदी'};
+
+function setVoiceLang(l, btn) {
+  voiceLang = l;
+  document.querySelectorAll('#p-voice .lang-btns .lbtn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('v-lang-lbl').textContent = LANG_LABELS[l];
+  document.getElementById('transcript').textContent = 'Language switched. Say a command or tap an action.';
+}
+
+function toggleVoice() {
+  voiceOn = !voiceOn;
+  const vc = document.getElementById('v-circle');
+  vc.classList.toggle('listening', voiceOn);
+  document.getElementById('transcript').textContent = voiceOn ? 'Listening...' : 'Tap mic to begin.';
+  if (voiceOn) startWave('voice-wave','purple');
+}
+
+function runVoiceCmd(cmd) {
+  const res = VOICE_RESPONSES[voiceLang][cmd] || 'Processing your request...';
+  document.getElementById('v-circle').classList.add('listening');
+  document.getElementById('transcript').textContent = '🎙️ You: "' + cmd + '"\n\n🤖 Aether AI: ' + res;
+  startWave('voice-wave','purple');
+  setTimeout(()=>document.getElementById('v-circle').classList.remove('listening'), 2500);
+  if (cmd==='Emergency SOS') { setTimeout(()=>showPage('sos'), 1500); }
+}
+
+// ═══════════════════════════════════════════════════
+// WELLNESS TREND CHART
+// ═══════════════════════════════════════════════════
+function drawTrend() {
+  const c = document.getElementById('trend-canvas');
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  c.width = c.offsetWidth||600; c.height = 90;
+  const data = [72,78,85,81,76,79,Math.round(hr)];
+  const max=Math.max(...data)+8, min=Math.min(...data)-8;
+  const pts = data.map((v,i)=>({x:(i/(data.length-1))*c.width, y:c.height-((v-min)/(max-min))*(c.height-14)-7}));
+  const g = ctx.createLinearGradient(0,0,0,c.height);
+  g.addColorStop(0,'rgba(0,242,255,.3)'); g.addColorStop(1,'transparent');
+  ctx.beginPath(); pts.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));
+  ctx.lineTo(c.width,c.height); ctx.lineTo(0,c.height); ctx.fillStyle=g; ctx.fill();
+  ctx.beginPath(); pts.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));
+  ctx.strokeStyle='#00F2FF'; ctx.lineWidth=2; ctx.shadowBlur=8; ctx.shadowColor='#00F2FF'; ctx.stroke(); ctx.shadowBlur=0;
+  pts.forEach((p,i)=>{
+    ctx.fillStyle='#00F2FF'; ctx.beginPath(); ctx.arc(p.x,p.y,3,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='rgba(224,247,250,.4)'; ctx.font='9px Rajdhani';
+    ctx.fillText(['Mon','Tue','Wed','Thu','Fri','Sat','Now'][i], p.x-8, c.height-1);
+    ctx.fillStyle='var(--cyan)'; ctx.font='bold 9px Share Tech Mono';
+    ctx.fillText(data[i], p.x-6, p.y-7);
+  });
+}
+
+// ═══════════════════════════════════════════════════
+// HOSPITAL DASHBOARD ACTIONS
+// ═══════════════════════════════════════════════════
+function updateHospitalData() {
+  const msg = document.getElementById('upd-msg');
+  msg.style.display='block';
+  setTimeout(()=>msg.style.display='none', 3000);
+}
+
+function acceptRequest(btn) {
+  const card = btn.closest('.req-card');
+  const statusEl = card.querySelector('.req-status');
+  statusEl.className='req-status status-done';
+  statusEl.textContent='ACCEPTED';
+  btn.remove();
+  card.classList.remove('urgent','moderate');
+}
+
+// ═══════════════════════════════════════════════════
+// ADMIN ACTIONS
+// ═══════════════════════════════════════════════════
+function adminBroadcast() {
+  document.getElementById('ab').style.display='flex';
+  document.getElementById('ab-text').textContent='📢 ADMIN BROADCAST — System maintenance scheduled. All hospitals notified.';
+  document.querySelector('nav').style.top='38px';
+  setTimeout(()=>{
+    document.getElementById('ab').style.display='none';
+    document.querySelector('nav').style.top='0';
+  }, 5000);
+}
+
+// ═══════════════════════════════════════════════════
+// PROFILE ACTIONS
+// ═══════════════════════════════════════════════════
+function saveProfile() {
+  const msg = document.getElementById('prof-save-msg');
+  msg.style.display='block';
+  setTimeout(()=>msg.style.display='none', 3000);
+}
+</script>
+</body>
+</html>
